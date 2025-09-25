@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
 	"server/internal/auth"
 	"server/internal/env"
 	"server/pkg/betools"
