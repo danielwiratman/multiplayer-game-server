@@ -1,0 +1,24 @@
+services:
+  valkey:
+    image: valkey/valkey:8
+    container_name: valkey
+    restart: always
+    ports:
+      - 6379:6379
+    volumes:
+      - valkey_data:/data
+
+  server:
+    build: ./server
+    container_name: game_server
+    restart: always
+    depends_on:
+      - valkey
+    environment:
+      - VALKEY_HOST=valkey
+      - VALKEY_PORT=6379
+    ports:
+      - 8080:8080
+
+volumes:
+  valkey_data:
