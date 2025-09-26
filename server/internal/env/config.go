@@ -7,6 +7,12 @@ type Env struct {
 	ValkeyPort string `env:"VALKEY_PORT"`
 
 	ListenPort string `env:"LISTEN_PORT" envDefault:"8080"`
+
+	DBHost string `env:"DB_HOST"`
+	DBPort string `env:"DB_PORT"`
+	DBUser string `env:"DB_USER"`
+	DBPass string `env:"DB_PASS"`
+	DBName string `env:"DB_NAME"`
 }
 
 var C *Env

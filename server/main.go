@@ -5,16 +5,24 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-
+	"os"
 	"server/internal/auth"
 	"server/internal/env"
 	"server/pkg/betools"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	l := slog.New(
+		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}),
+	)
+	slog.SetDefault(l)
+
 	slog.Info("env loading")
 	if err := env.Load(); err != nil {
 		panic("env load: " + err.Error())
@@ -31,9 +39,21 @@ func main() {
 	}
 	slog.Info("redis connected")
 
+	slog.Info("postgres connecting")
+	db, err := pgx.Connect(context.Background(), fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", env.C.DBHost, env.C.DBPort, env.C.DBUser, env.C.DBPass, env.C.DBName))
+	if err != nil {
+		panic("postgres connect: " + err.Error())
+	}
+
+	if err := db.Ping(context.Background()); err != nil {
+		panic("postgres ping: " + err.Error())
+	}
+	slog.Info("postgres connected")
+
 	r := chi.NewRouter()
 
-	authController := auth.NewController()
+	authService := auth.NewService(db, rdb)
+	authController := auth.NewController(authService)
 
 	router := betools.NewRouter(
 		authController,

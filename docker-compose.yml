@@ -7,18 +7,61 @@ services:
       - 6379:6379
     volumes:
       - valkey_data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   server:
     build: ./server
     container_name: game_server
     restart: always
     depends_on:
-      - valkey
+      valkey:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       - VALKEY_HOST=valkey
       - VALKEY_PORT=6379
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASS=${POSTGRES_PASSWORD}
+      - DB_NAME=postgres
     ports:
       - 8080:8080
 
+  migrate:
+    image: migrate/migrate:4
+    container_name: migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: -path /migrations -database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/postgres?sslmode=disable" up
+    volumes:
+      - ./migrations:/migrations
+
 volumes:
   valkey_data:
+  postgres_data:
