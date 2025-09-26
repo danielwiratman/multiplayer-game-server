@@ -49,6 +49,7 @@ services:
       - DB_USER=${POSTGRES_USER}
       - DB_PASS=${POSTGRES_PASSWORD}
       - DB_NAME=postgres
+      - JWT_SECRET=${JWT_SECRET}
     ports:
       - 8080:8080
 

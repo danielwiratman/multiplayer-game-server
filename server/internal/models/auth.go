@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8,max=128"`
@@ -10,6 +12,20 @@ type LoginRequest struct {
 	Password string `json:"password" validate:"required,min=8,max=128"`
 }
 
+type LoginResult struct {
+	AccessToken  string
+	RefreshToken string
+	UserID       int
+	ExpiresIn    time.Time
+}
+
 type LoginResponse struct {
-	AccessToken string `json:"access_token"`
+	AccessToken string    `json:"access_token"`
+	TokenType   string    `json:"token_type"`
+	ExpiresIn   time.Time `json:"expires_in"`
+}
+
+type RefreshTokenCacheVal struct {
+	UserID    int
+	ExpiresIn time.Time
 }

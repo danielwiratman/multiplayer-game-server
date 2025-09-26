@@ -2,8 +2,11 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"server/internal/env"
 	"server/internal/models"
 	"strings"
 	"time"
@@ -32,14 +35,14 @@ func NewService(db *pgx.Conn, rdb *redis.Client) *Service {
 func (s *Service) Register(req models.RegisterRequest) error {
 	req.Email = strings.ToLower(req.Email)
 
-	passHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.MaxCost)
+	passHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 12)
 	if err != nil {
 		return fmt.Errorf("bcrypt generate: %w", err)
 	}
 	slog.Debug("hashing password with bcrypt", "password", req.Password, "hash", string(passHash))
 
 	if _, err := s.db.Exec(context.Background(),
-		"INSERT INTO users (email, password_hash) VALUES ($1, $2)",
+		"INSERT INTO accounts (email, password_hash) VALUES ($1, $2)",
 		req.Email, string(passHash)); err != nil {
 
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
@@ -52,22 +55,27 @@ func (s *Service) Register(req models.RegisterRequest) error {
 	return nil
 }
 
-func (s *Service) Login(req models.LoginRequest) (*models.LoginResponse, error) {
+func (s *Service) Login(req models.LoginRequest) (*models.LoginResult, error) {
 	type userType struct {
 		ID           int
 		PasswordHash string
 	}
 
 	user := userType{}
-	if err := pgxscan.Select(context.Background(), s.db, &user,
+	if err := pgxscan.Get(context.Background(), s.db, &user,
 		"SELECT id, password_hash FROM accounts WHERE email = $1",
 		req.Email,
 	); err != nil {
+
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.NoDataFound {
+			return nil, fmt.Errorf("user not found")
+		}
+
 		return nil, fmt.Errorf("postgres select: %w", err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return nil, fmt.Errorf("bcrypt compare: %w", err)
+		return nil, fmt.Errorf("wrong password")
 	}
 
 	newAccessToken, err := s.genJWT(user.ID)
@@ -75,8 +83,26 @@ func (s *Service) Login(req models.LoginRequest) (*models.LoginResponse, error) 
 		return nil, fmt.Errorf("jwt generate: %w", err)
 	}
 
-	return &models.LoginResponse{
-		AccessToken: newAccessToken,
+	newRefreshToken, err := genRefreshToken()
+	if err != nil {
+		return nil, fmt.Errorf("refresh token generate: %w", err)
+	}
+
+	cacheKey := "refresh:" + newRefreshToken
+	cacheVal := models.RefreshTokenCacheVal{
+		UserID:    user.ID,
+		ExpiresIn: time.Now().Add(30 * 24 * time.Hour),
+	}
+
+	if err := s.rdb.Set(context.Background(), cacheKey, cacheVal, 30*24*time.Hour).Err(); err != nil {
+		return nil, fmt.Errorf("redis set: %w", err)
+	}
+
+	return &models.LoginResult{
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken,
+		UserID:       user.ID,
+		ExpiresIn:    time.Now().Add(time.Duration(env.C.JWTExpiration) * time.Second),
 	}, nil
 }
 
@@ -84,9 +110,17 @@ func (s *Service) genJWT(uid int) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Issuer:    "multiplayer-game-server",
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(env.C.JWTExpiration) * time.Second)),
 		Subject:   fmt.Sprintf("%d", uid),
 	}
 
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("secret"))
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(env.C.JWTSecret))
+}
+
+func genRefreshToken() (string, error) {
+	b := make([]byte, 32) // 256-bit
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
 }

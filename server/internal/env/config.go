@@ -3,6 +3,8 @@ package env
 import "github.com/caarlos0/env/v10"
 
 type Env struct {
+	IsProd bool `env:"IS_PROD" envDefault:"false"`
+
 	ValkeyHost string `env:"VALKEY_HOST"`
 	ValkeyPort string `env:"VALKEY_PORT"`
 
@@ -13,6 +15,9 @@ type Env struct {
 	DBUser string `env:"DB_USER"`
 	DBPass string `env:"DB_PASS"`
 	DBName string `env:"DB_NAME"`
+
+	JWTExpiration int    `env:"JWT_EXPIRATION" envDefault:"300"`
+	JWTSecret     string `env:"JWT_SECRET"`
 }
 
 var C *Env
