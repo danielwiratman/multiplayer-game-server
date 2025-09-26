@@ -16,8 +16,12 @@ type Env struct {
 	DBPass string `env:"DB_PASS"`
 	DBName string `env:"DB_NAME"`
 
-	JWTExpiration int    `env:"JWT_EXPIRATION" envDefault:"300"`
-	JWTSecret     string `env:"JWT_SECRET"`
+	AccessTokenExpirationSeconds  int `env:"ACCESS_TOKEN_EXPIRATION_SECONDS" envDefault:"300"`
+	RefreshTokenExpirationSeconds int `env:"REFRESH_TOKEN_EXPIRATION_SECONDS" envDefault:"604800"` // 7 days
+
+	AccountInfoCacheSeconds int `env:"ACCOUNT_INFO_CACHE_SECONDS" envDefault:"60"`
+
+	JWTSecret string `env:"JWT_SECRET"`
 }
 
 var C *Env

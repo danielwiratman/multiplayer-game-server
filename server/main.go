@@ -8,6 +8,8 @@ import (
 	"os"
 	"server/internal/auth"
 	"server/internal/env"
+	"server/internal/middlewares"
+	"server/internal/player"
 	"server/pkg/betools"
 
 	"github.com/go-chi/chi/v5"
@@ -52,11 +54,14 @@ func main() {
 
 	r := chi.NewRouter()
 
+	middlewares := middlewares.NewMiddlewares(rdb, db)
 	authService := auth.NewService(db, rdb)
 	authController := auth.NewController(authService)
+	playerController := player.NewController(middlewares)
 
 	router := betools.NewRouter(
 		authController,
+		playerController,
 	)
 
 	r.Route("/", router.Route)

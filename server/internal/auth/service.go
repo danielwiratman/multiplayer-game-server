@@ -2,8 +2,7 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"server/internal/env"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -78,23 +78,27 @@ func (s *Service) Login(req models.LoginRequest) (*models.LoginResult, error) {
 		return nil, fmt.Errorf("wrong password")
 	}
 
-	newAccessToken, err := s.genJWT(user.ID)
+	newAccessToken, err := genAccessToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("jwt generate: %w", err)
 	}
 
-	newRefreshToken, err := genRefreshToken()
+	newRefreshToken, refreshTokenJwtID, err := genRefreshToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("refresh token generate: %w", err)
 	}
 
-	cacheKey := "refresh:" + newRefreshToken
+	cacheKey := "refresh:" + refreshTokenJwtID
 	cacheVal := models.RefreshTokenCacheVal{
 		UserID:    user.ID,
 		ExpiresIn: time.Now().Add(30 * 24 * time.Hour),
 	}
+	cacheValBytes, err := json.Marshal(cacheVal)
+	if err != nil {
+		return nil, fmt.Errorf("json marshal: %w", err)
+	}
 
-	if err := s.rdb.Set(context.Background(), cacheKey, cacheVal, 30*24*time.Hour).Err(); err != nil {
+	if err := s.rdb.Set(context.Background(), cacheKey, cacheValBytes, 30*24*time.Hour).Err(); err != nil {
 		return nil, fmt.Errorf("redis set: %w", err)
 	}
 
@@ -102,25 +106,36 @@ func (s *Service) Login(req models.LoginRequest) (*models.LoginResult, error) {
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
 		UserID:       user.ID,
-		ExpiresIn:    time.Now().Add(time.Duration(env.C.JWTExpiration) * time.Second),
+		ExpiresIn:    time.Now().Add(time.Duration(env.C.AccessTokenExpirationSeconds) * time.Second),
 	}, nil
 }
 
-func (s *Service) genJWT(uid int) (string, error) {
+func genAccessToken(uid int) (string, error) {
 	claims := jwt.RegisteredClaims{
 		Issuer:    "multiplayer-game-server",
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(env.C.JWTExpiration) * time.Second)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(env.C.AccessTokenExpirationSeconds) * time.Second)),
 		Subject:   fmt.Sprintf("%d", uid),
 	}
 
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(env.C.JWTSecret))
 }
 
-func genRefreshToken() (string, error) {
-	b := make([]byte, 32) // 256-bit
-	if _, err := rand.Read(b); err != nil {
-		return "", err
+func genRefreshToken(uid int) (string, string, error) {
+	jti := uuid.NewString()
+
+	claims := jwt.RegisteredClaims{
+		Issuer:    "multiplayer-game-server",
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Duration(env.C.RefreshTokenExpirationSeconds) * time.Second)),
+		Subject:   fmt.Sprintf("%d", uid),
+		ID:        jti,
 	}
-	return base64.URLEncoding.EncodeToString(b), nil
+
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(env.C.JWTSecret))
+	if err != nil {
+		return "", "", fmt.Errorf("jwt generate: %w", err)
+	}
+
+	return token, jti, nil
 }

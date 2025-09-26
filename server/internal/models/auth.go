@@ -29,3 +29,13 @@ type RefreshTokenCacheVal struct {
 	UserID    int
 	ExpiresIn time.Time
 }
+
+type UserInfoFromToken struct {
+	UserID int
+}
+
+type Account struct {
+	FirstName string
+	LastName  string
+	Email     string
+}

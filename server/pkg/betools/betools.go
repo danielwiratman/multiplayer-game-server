@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"server/internal/models"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -294,11 +295,7 @@ func Validate[T any](data *T) []ValidationError {
 
 type CtxKey int
 
-const (
-	CtxKeyBody CtxKey = iota
-)
-
-func GetContext[T any](r *http.Request, ctxLabel CtxKey) T {
+func getContext[T any](r *http.Request, ctxLabel CtxKey) T {
 	var def T
 
 	val := r.Context().Value(ctxLabel)
@@ -318,6 +315,17 @@ func SetContext(r *http.Request, key CtxKey, val any) *http.Request {
 	return r.WithContext(ctx)
 }
 
+/* BELOW THIS IS EDITABLE */
+
+const (
+	CtxKeyBody CtxKey = iota
+	CtxKeyAuth
+)
+
 func GetBodyCtx[T any](r *http.Request) T {
-	return GetContext[T](r, CtxKeyBody)
+	return getContext[T](r, CtxKeyBody)
+}
+
+func GetAuthCtx(r *http.Request) models.Account {
+	return getContext[models.Account](r, CtxKeyAuth)
 }
