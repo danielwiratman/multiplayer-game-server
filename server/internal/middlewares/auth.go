@@ -94,9 +94,9 @@ func (m *Middlewares) AuthMiddleware() betools.Middleware {
 				}
 			}
 
-			betools.SetContext(r, betools.CtxKeyAuth, account)
+			slog.Debug("auth middleware", "account", account)
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, betools.SetContext(r, betools.CtxKeyAuth, account))
 		})
 	}
 }

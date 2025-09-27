@@ -42,8 +42,8 @@ func (s *Service) Register(req models.RegisterRequest) error {
 	slog.Debug("hashing password with bcrypt", "password", req.Password, "hash", string(passHash))
 
 	if _, err := s.db.Exec(context.Background(),
-		"INSERT INTO accounts (email, password_hash) VALUES ($1, $2)",
-		req.Email, string(passHash)); err != nil {
+		"INSERT INTO accounts (first_name, last_name, email, password_hash) VALUES ($1, $2, $3, $4)",
+		req.FirstName, req.LastName, req.Email, string(passHash)); err != nil {
 
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return fmt.Errorf("user already exists")

@@ -1,6 +1,7 @@
 package player
 
 import (
+	"log/slog"
 	"net/http"
 	"server/internal/middlewares"
 	"server/internal/models"
@@ -42,6 +43,8 @@ func (c *Controller) GetRoutes() []betools.Route {
 
 func (c *Controller) handleGetMe(w http.ResponseWriter, r *http.Request) {
 	account := betools.GetAuthCtx(r)
+
+	slog.Debug("get me", "account", account)
 
 	betools.SendOKResponse(w, account)
 }

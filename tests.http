@@ -1,7 +1,7 @@
 ### 
 
+@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtdWx0aXBsYXllci1nYW1lLXNlcnZlciIsInN1YiI6IjEiLCJleHAiOjE3NTg5ODI5ODIsImlhdCI6MTc1ODk4MjY4Mn0.ovrJgUxJt-rpxsmUu0jJN3Q2sqcs7R94h4sLarXrRFA
 @hostname = http://localhost:8080
-@access_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJtdWx0aXBsYXllci1nYW1lLXNlcnZlciIsInN1YiI6IjEiLCJleHAiOjE3NTg4ODY4NjksImlhdCI6MTc1ODg4NjU2OX0.T5yakylrUWMTvdkRS2evrDRdz9e_AlP9RgbPkHnOWw8
 
 
 ### 
@@ -11,6 +11,8 @@ Content-Type: application/json
 
 {
   "email": "test@localhost.com",
+  "first_name": "Daniel",
+  "last_name": "Wiratman",
   "password": "test1234"
 }
 
@@ -26,7 +28,7 @@ Content-Type: application/json
 }
 
 
-###
+### 
 
-GET {{hostname}}/player/me
+GET {{hostname}}/player/me HTTP/1.1
 Authorization: Bearer {{access_token}}
