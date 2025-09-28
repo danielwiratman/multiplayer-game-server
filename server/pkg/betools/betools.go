@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"reflect"
-	"server/internal/models"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -326,6 +325,6 @@ func GetBodyCtx[T any](r *http.Request) T {
 	return getContext[T](r, CtxKeyBody)
 }
 
-func GetAuthCtx(r *http.Request) models.Account {
-	return getContext[models.Account](r, CtxKeyAuth)
+func GetAuthCtx(r *http.Request) int {
+	return getContext[int](r, CtxKeyAuth)
 }

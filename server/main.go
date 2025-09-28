@@ -8,7 +8,6 @@ import (
 	"os"
 	"server/internal/auth"
 	"server/internal/env"
-	"server/internal/middlewares"
 	"server/internal/player"
 	"server/pkg/betools"
 
@@ -54,10 +53,10 @@ func main() {
 
 	r := chi.NewRouter()
 
-	middlewares := middlewares.NewMiddlewares(rdb, db)
 	authService := auth.NewService(db, rdb)
 	authController := auth.NewController(authService)
-	playerController := player.NewController(middlewares)
+	playerService := player.NewService(db, rdb)
+	playerController := player.NewController(playerService)
 
 	router := betools.NewRouter(
 		authController,
